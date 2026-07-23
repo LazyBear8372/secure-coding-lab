@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="form-panel">
+    <p class="eyebrow">PRODUCT</p>
+    <h1>{% if product %}상품 수정{% else %}상품 등록{% endif %}</h1>
+    {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+    <form
+      method="post"
+      action="{% if product %}/products/{{ product.id }}/edit{% else %}/products{% endif %}"
+      enctype="multipart/form-data"
+    >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="name">상품명</label>
+      <input id="name" name="name" value="{{ name }}" maxlength="120" required>
+
+      <label for="description">설명</label>
+      <textarea id="description" name="description" maxlength="5000" rows="8" required>{{ description }}</textarea>
+
+      <label for="price">가격</label>
+      <input
+        id="price"
+        name="price"
+        type="number"
+        value="{{ price }}"
+        min="0"
+        max="9223372036854775807"
+        step="1"
+        required
+      >
+
+      <label for="image">대표 사진{% if product %} 변경{% endif %}</label>
+      <input
+        id="image"
+        name="image"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        {% if not product %}required{% endif %}
+      >
+      <p class="form-help">JPEG, PNG, WebP · 최대 5MB</p>
+      <button type="submit">{% if product %}수정 저장{% else %}상품 등록{% endif %}</button>
+    </form>
+  </section>
+{% endblock %}

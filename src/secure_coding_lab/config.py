@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     secret_key: str = INSECURE_DEFAULT_SECRET
     database_url: str = "postgresql+asyncpg://secure_lab:secure_lab_dev@127.0.0.1:5432/secure_lab"
     session_ttl_hours: int = 24
+    upload_dir: str = "data/uploads"
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> Self:

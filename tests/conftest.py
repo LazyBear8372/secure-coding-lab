@@ -5,6 +5,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from secure_coding_lab.config import Settings, get_settings
 from secure_coding_lab.db import Base, get_db_session
 from secure_coding_lab.main import app
 
@@ -28,12 +29,20 @@ async def database_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
 @pytest_asyncio.fixture
 async def client(
     database_factory: async_sessionmaker[AsyncSession],
+    tmp_path,
 ) -> AsyncIterator[AsyncClient]:
     async def override_database() -> AsyncIterator[AsyncSession]:
         async with database_factory() as session:
             yield session
 
     app.dependency_overrides[get_db_session] = override_database
+    test_settings = Settings(
+        app_env="test",
+        secret_key="test-secret-key-with-at-least-32-characters",
+        database_url="sqlite+aiosqlite://",
+        upload_dir=str(tmp_path / "uploads"),
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
