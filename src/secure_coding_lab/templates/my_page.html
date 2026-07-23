@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="settings-panel">
+    <p class="eyebrow">MY PAGE</p>
+    <h1>{{ current_user.username }}</h1>
+    <p><a href="/users/{{ current_user.username }}">공개 프로필 보기</a></p>
+    {% if notice %}<p class="message message--ok" role="status">{{ notice }}</p>{% endif %}
+    {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+
+    <section class="settings-card">
+      <h2>소개글</h2>
+      <form method="post" action="/me/bio">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="bio">소개글</label>
+        <textarea id="bio" name="bio" maxlength="1000" rows="6">{{ current_user.bio }}</textarea>
+        <button type="submit">소개글 저장</button>
+      </form>
+    </section>
+
+    <section class="settings-card">
+      <h2>비밀번호 변경</h2>
+      <form method="post" action="/me/password">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="current-password">현재 비밀번호</label>
+        <input
+          id="current-password"
+          name="current_password"
+          type="password"
+          maxlength="128"
+          autocomplete="current-password"
+          required
+        >
+        <label for="new-password">새 비밀번호</label>
+        <input
+          id="new-password"
+          name="new_password"
+          type="password"
+          minlength="12"
+          maxlength="128"
+          autocomplete="new-password"
+          required
+        >
+        <label for="new-password-confirm">새 비밀번호 확인</label>
+        <input
+          id="new-password-confirm"
+          name="new_password_confirm"
+          type="password"
+          minlength="12"
+          maxlength="128"
+          autocomplete="new-password"
+          required
+        >
+        <button type="submit">비밀번호 변경</button>
+      </form>
+    </section>
+
+    <section class="settings-card danger-zone">
+      <h2>회원 탈퇴</h2>
+      <p>탈퇴하면 모든 로그인 세션이 즉시 폐기됩니다.</p>
+      <form method="post" action="/me/withdraw">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="withdraw-password">현재 비밀번호</label>
+        <input
+          id="withdraw-password"
+          name="current_password"
+          type="password"
+          maxlength="128"
+          autocomplete="current-password"
+          required
+        >
+        <button type="submit" class="button--danger">회원 탈퇴</button>
+      </form>
+    </section>
+  </section>
+{% endblock %}

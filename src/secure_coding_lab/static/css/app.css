@@ -76,6 +76,49 @@ body {
   box-shadow: 0 1rem 3rem rgb(35 71 48 / 8%);
 }
 
+.profile-panel,
+.settings-panel {
+  width: min(48rem, 100%);
+  margin: 4rem auto;
+}
+
+.profile-panel h1,
+.settings-panel h1 {
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+}
+
+.bio {
+  white-space: pre-wrap;
+}
+
+.muted {
+  color: #667268;
+}
+
+.settings-card {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid #dfe6db;
+  border-radius: 0.75rem;
+  background: white;
+}
+
+.settings-card h2 {
+  margin-top: 0;
+}
+
+.danger-zone {
+  border-color: #eab8b8;
+}
+
+.button--danger {
+  background: #9c2f2f;
+}
+
+.button--danger:hover {
+  background: #762222;
+}
+
 .form-panel h1 {
   font-size: clamp(2.25rem, 6vw, 3.5rem);
 }
