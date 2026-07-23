@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero">
+    <p class="eyebrow">SECONDHAND MARKETPLACE</p>
+    <h1>안전한 중고거래를 시작합니다.</h1>
+    <p>FastAPI, PostgreSQL, Jinja2와 HTMX 개발 환경이 준비되었습니다.</p>
+    <button
+      type="button"
+      hx-get="/partials/status"
+      hx-target="#service-status"
+      hx-swap="innerHTML"
+    >
+      서버 상태 확인
+    </button>
+    <div id="service-status" aria-live="polite"></div>
+  </section>
+{% endblock %}
