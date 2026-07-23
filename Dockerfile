@@ -20,6 +20,7 @@ COPY migrations ./migrations
 RUN uv sync --frozen --no-dev --no-cache \
     && groupadd --system app \
     && useradd --system --gid app --home-dir /app app \
+    && mkdir -p /app/data/uploads \
     && chown -R app:app /app
 
 USER app

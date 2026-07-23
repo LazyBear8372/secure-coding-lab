@@ -17,6 +17,24 @@ services:
       retries: 10
       start_period: 5s
 
+  uploads-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    user: root
+    command: ["sh", "-c", "chown -R app:app /app/data/uploads"]
+    read_only: true
+    volumes:
+      - product_images:/app/data/uploads
+    network_mode: none
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+
   app:
     build:
       context: .
@@ -36,6 +54,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      uploads-init:
+        condition: service_completed_successfully
     networks:
       - frontend
       - backend
