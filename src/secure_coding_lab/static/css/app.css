@@ -15,9 +15,40 @@ body {
 }
 
 .site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 1.25rem clamp(1.25rem, 5vw, 4rem);
   border-bottom: 1px solid #dfe6db;
   background: rgb(255 255 255 / 85%);
+}
+
+.site-header nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-header nav a {
+  color: #26734a;
+  font-weight: 700;
+}
+
+.site-header nav form {
+  display: block;
+  margin: 0;
+}
+
+.nav-button {
+  margin: 0;
+  padding: 0;
+  color: #26734a;
+  background: transparent;
+}
+
+.nav-button:hover {
+  color: #1d5939;
+  background: transparent;
 }
 
 .brand {
@@ -33,6 +64,48 @@ body {
 
 .hero {
   padding: clamp(5rem, 12vw, 9rem) 0;
+}
+
+.form-panel {
+  width: min(32rem, 100%);
+  margin: 4rem auto;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  border: 1px solid #dfe6db;
+  border-radius: 1rem;
+  background: white;
+  box-shadow: 0 1rem 3rem rgb(35 71 48 / 8%);
+}
+
+.form-panel h1 {
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+}
+
+form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+label {
+  margin-top: 0.5rem;
+  font-weight: 700;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #b9c7bb;
+  border-radius: 0.5rem;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+
+input:focus,
+textarea:focus {
+  outline: 3px solid rgb(38 115 74 / 20%);
+  border-color: #26734a;
 }
 
 .eyebrow {
@@ -72,4 +145,19 @@ button:hover {
 .status--ok {
   color: #1d6a41;
   font-weight: 700;
+}
+
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+}
+
+.message--ok {
+  color: #155d37;
+  background: #e4f7eb;
+}
+
+.message--error {
+  color: #8b1e1e;
+  background: #fdeaea;
 }
