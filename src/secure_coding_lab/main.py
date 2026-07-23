@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from secure_coding_lab.config import get_settings
 from secure_coding_lab.db import engine
-from secure_coding_lab.routers import health, pages
+from secure_coding_lab.routers import auth, health, pages
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 
@@ -27,4 +27,5 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=PACKAGE_DIR / "static"), name="static")
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(pages.router)
