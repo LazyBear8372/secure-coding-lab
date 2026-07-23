@@ -1,68 +1,40 @@
-# Secure Coding Lab
+# Secure Coding Lab 실행 방법
 
-FastAPI 기반 중고거래 플랫폼 프로젝트입니다.
-
-## 현재 구현 범위
-
-- 전체 도메인 SQLAlchemy 모델과 Alembic 초기 마이그레이션
-- 회원가입, 로그인, 로그아웃과 DB 세션 관리
-- 공개 프로필, 소개글·비밀번호 변경, 회원 탈퇴
-- 상품 등록·상세·수정·소프트 삭제와 안전한 대표 이미지 업로드
-- 상품 목록·검색·페이지네이션, 내 상품 목록과 판매 완료 처리
-- Argon2id 비밀번호 해시, CSRF 방어, 안전한 세션 쿠키
-
-## 기술 스택
-
-- Nginx, Uvicorn, FastAPI
-- SQLAlchemy 2.0, Alembic, PostgreSQL
-- Jinja2, HTMX
-- uv, pytest, Ruff
-- Docker Compose
-
-## 로컬 실행
-
-Python 3.13과 [uv](https://docs.astral.sh/uv/)가 필요합니다.
+## 실행
 
 ```bash
+git clone https://github.com/LazyBear8372/secure-coding-lab.git
+cd secure-coding-lab
 cp .env.example .env
-uv sync --dev
-uv run uvicorn secure_coding_lab.main:app --reload
 ```
 
-웹 애플리케이션은 `http://127.0.0.1:8000`, API 문서는
-`http://127.0.0.1:8000/docs`에서 확인할 수 있습니다.
+Windows PowerShell에서는 마지막 명령 대신 다음을 실행한다.
 
-## Docker Compose 실행
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env`를 열어 `SECRET_KEY`와 `POSTGRES_PASSWORD`를 임의의 안전한 값으로 변경한다.
+두 값에는 영문자와 숫자만 사용하고, `SECRET_KEY`는 32자 이상으로 설정한다.
 
 ```bash
-cp .env.example .env
 docker compose up --build -d
 docker compose ps
 ```
 
-Nginx를 통한 서비스 주소는 `http://127.0.0.1:8000`입니다.
+`db`, `app`, `nginx`가 모두 `healthy`가 되면 브라우저에서 아래 주소로 접속한다.
+
+<http://127.0.0.1:8000>
+
+
+## 종료
 
 ```bash
-docker compose logs -f
 docker compose down
 ```
 
-## 검증
+DB와 업로드 이미지를 포함한 모든 데이터를 삭제하려면 다음을 실행한다.
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-docker compose config --quiet
+docker compose down -v
 ```
-
-테스트에는 데이터베이스 무결성 제약, 인증 실패, 세션 폐기, CSRF, 저장형 XSS,
-비밀번호 변경·탈퇴, 상품 소유권, 이미지 업로드 검증, 검색·페이지네이션과 판매 상태
-흐름이 포함됩니다.
-
-## 환경 변수
-
-실제 비밀값이 담긴 `.env`는 Git에 커밋하지 않습니다. 새 환경에서는
-`.env.example`을 복사한 뒤 `SECRET_KEY`와 `POSTGRES_PASSWORD`를 변경해야 합니다.
-`SESSION_TTL_HOURS`로 로그인 세션의 유효 시간을 조정할 수 있습니다.
-`UPLOAD_DIR`로 검증·재인코딩된 상품 대표 이미지 저장 위치를 지정할 수 있습니다.
