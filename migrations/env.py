@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from secure_coding_lab import models  # noqa: F401
 from secure_coding_lab.config import get_settings
 from secure_coding_lab.db import Base
 
