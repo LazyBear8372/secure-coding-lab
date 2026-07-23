@@ -2,6 +2,13 @@
 
 FastAPI 기반 중고거래 플랫폼 프로젝트입니다.
 
+## 현재 구현 범위
+
+- 전체 도메인 SQLAlchemy 모델과 Alembic 초기 마이그레이션
+- 회원가입, 로그인, 로그아웃과 DB 세션 관리
+- 공개 프로필, 소개글·비밀번호 변경, 회원 탈퇴
+- Argon2id 비밀번호 해시, CSRF 방어, 안전한 세션 쿠키
+
 ## 기술 스택
 
 - Nginx, Uvicorn, FastAPI
@@ -47,7 +54,11 @@ uv run ruff format --check .
 docker compose config --quiet
 ```
 
+테스트에는 데이터베이스 무결성 제약, 인증 실패, 세션 폐기, CSRF, 저장형 XSS,
+비밀번호 변경 및 탈퇴 흐름이 포함됩니다.
+
 ## 환경 변수
 
 실제 비밀값이 담긴 `.env`는 Git에 커밋하지 않습니다. 새 환경에서는
 `.env.example`을 복사한 뒤 `SECRET_KEY`와 `POSTGRES_PASSWORD`를 변경해야 합니다.
+`SESSION_TTL_HOURS`로 로그인 세션의 유효 시간을 조정할 수 있습니다.

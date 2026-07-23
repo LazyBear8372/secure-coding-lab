@@ -17,35 +17,13 @@ from secure_coding_lab.security import (
     hash_session_token,
     is_valid_password,
     is_valid_username,
-    make_csrf_token,
     make_session_token,
     normalize_username,
     verify_password,
 )
-from secure_coding_lab.templating import templates
-from secure_coding_lab.web_security import cookie_is_secure, csrf_is_valid, set_csrf_cookie
+from secure_coding_lab.web_security import cookie_is_secure, csrf_is_valid, render_with_csrf
 
 router = APIRouter(include_in_schema=False)
-
-
-def render_form(
-    request: Request,
-    template_name: str,
-    *,
-    settings: Settings,
-    context: dict[str, object] | None = None,
-    status_code: int = status.HTTP_200_OK,
-) -> HTMLResponse:
-    csrf_token = make_csrf_token(settings.secret_key)
-    template_context = {"csrf_token": csrf_token, **(context or {})}
-    response = templates.TemplateResponse(
-        request=request,
-        name=template_name,
-        context=template_context,
-        status_code=status_code,
-    )
-    set_csrf_cookie(response, csrf_token, settings)
-    return response
 
 
 @router.get("/signup", response_class=HTMLResponse)
@@ -53,7 +31,7 @@ async def signup_page(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> HTMLResponse:
-    return render_form(request, "signup.html", settings=settings)
+    return render_with_csrf(request, "signup.html", settings=settings)
 
 
 @router.post("/signup", response_class=HTMLResponse)
@@ -70,7 +48,7 @@ async def signup(
     form_context = {"username": normalized_username}
 
     if not csrf_is_valid(request, csrf_token, settings):
-        return render_form(
+        return render_with_csrf(
             request,
             "signup.html",
             settings=settings,
@@ -78,7 +56,7 @@ async def signup(
             status_code=status.HTTP_403_FORBIDDEN,
         )
     if not is_valid_username(normalized_username):
-        return render_form(
+        return render_with_csrf(
             request,
             "signup.html",
             settings=settings,
@@ -89,7 +67,7 @@ async def signup(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     if not is_valid_password(password):
-        return render_form(
+        return render_with_csrf(
             request,
             "signup.html",
             settings=settings,
@@ -100,7 +78,7 @@ async def signup(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     if password != password_confirm:
-        return render_form(
+        return render_with_csrf(
             request,
             "signup.html",
             settings=settings,
@@ -113,7 +91,7 @@ async def signup(
         await database.commit()
     except IntegrityError:
         await database.rollback()
-        return render_form(
+        return render_with_csrf(
             request,
             "signup.html",
             settings=settings,
@@ -129,9 +107,15 @@ async def login_page(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
     registered: bool = False,
+    password_changed: bool = False,
 ) -> HTMLResponse:
-    context = {"notice": "회원가입이 완료되었습니다."} if registered else None
-    return render_form(request, "login.html", settings=settings, context=context)
+    notice = None
+    if registered:
+        notice = "회원가입이 완료되었습니다."
+    elif password_changed:
+        notice = "비밀번호가 변경되었습니다. 다시 로그인해 주세요."
+    context = {"notice": notice} if notice else None
+    return render_with_csrf(request, "login.html", settings=settings, context=context)
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -149,7 +133,7 @@ async def login(
         "error": "아이디 또는 비밀번호가 올바르지 않습니다.",
     }
     if not csrf_is_valid(request, csrf_token, settings):
-        return render_form(
+        return render_with_csrf(
             request,
             "login.html",
             settings=settings,
@@ -162,7 +146,7 @@ async def login(
     password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
     password_matches = verify_password(password_hash, password)
     if user is None or user.status != UserStatus.ACTIVE or not password_matches:
-        return render_form(
+        return render_with_csrf(
             request,
             "login.html",
             settings=settings,

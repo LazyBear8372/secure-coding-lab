@@ -26,6 +26,7 @@ services:
       APP_ENV: ${APP_ENV:-local}
       APP_DEBUG: ${APP_DEBUG:-false}
       SECRET_KEY: ${SECRET_KEY:-local-development-only-change-me}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-24}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-secure_lab}:${POSTGRES_PASSWORD:-secure_lab_dev}@db:5432/${POSTGRES_DB:-secure_lab}
     command:
       - sh

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="profile-panel">
+    <p class="eyebrow">USER PROFILE</p>
+    <h1>{{ profile_user.username }}</h1>
+    {% if profile_user.bio %}
+      <p class="bio">{{ profile_user.bio }}</p>
+    {% else %}
+      <p class="muted">작성된 소개글이 없습니다.</p>
+    {% endif %}
+  </section>
+{% endblock %}

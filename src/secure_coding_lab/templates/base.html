@@ -12,7 +12,7 @@
       <a href="/" class="brand">Secure Coding Lab</a>
       <nav aria-label="주 메뉴">
         {% if current_user %}
-          <span>{{ current_user.username }}</span>
+          <a href="/me">{{ current_user.username }}</a>
           <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="nav-button">로그아웃</button>
