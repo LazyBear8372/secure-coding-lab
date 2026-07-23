@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <article class="product-detail">
+    <img
+      src="/product-images/{{ product.image_key }}"
+      alt="{{ product.name }} 대표 사진"
+      class="product-detail__image"
+    >
+    <div>
+      <p class="eyebrow">PRODUCT</p>
+      <h1>{{ product.name }}</h1>
+      <p class="product-price">{{ "{:,}".format(product.price) }}원</p>
+      <p>판매자: <a href="/users/{{ seller.username }}">{{ seller.username }}</a></p>
+      <p class="product-description">{{ product.description }}</p>
+      {% if current_user and current_user.id == product.seller_id %}
+        <div class="product-actions">
+          <a href="/products/{{ product.id }}/edit" class="button-link">수정</a>
+          <form method="post" action="/products/{{ product.id }}/delete">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="button--danger">삭제</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  </article>
+{% endblock %}

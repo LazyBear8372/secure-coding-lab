@@ -135,7 +135,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   padding: 0.8rem;
   border: 1px solid #b9c7bb;
@@ -146,7 +147,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: 3px solid rgb(38 115 74 / 20%);
   border-color: #26734a;
 }
@@ -203,4 +205,66 @@ button:hover {
 .message--error {
   color: #8b1e1e;
   background: #fdeaea;
+}
+
+.form-help {
+  margin: 0;
+  color: #667268;
+  font-size: 0.875rem;
+}
+
+.product-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 1fr);
+  gap: clamp(2rem, 6vw, 5rem);
+  margin: 4rem 0;
+}
+
+.product-detail__image {
+  width: 100%;
+  max-height: 38rem;
+  border-radius: 1rem;
+  object-fit: cover;
+  background: #e8ede5;
+}
+
+.product-detail h1 {
+  font-size: clamp(2.25rem, 6vw, 4rem);
+}
+
+.product-price {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.product-description {
+  white-space: pre-wrap;
+}
+
+.product-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.product-actions form,
+.product-actions button {
+  margin: 0;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 0.8rem 1.1rem;
+  border-radius: 0.5rem;
+  color: white;
+  background: #26734a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 44rem) {
+  .product-detail {
+    grid-template-columns: 1fr;
+  }
 }
