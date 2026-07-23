@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="product-list-header">
+    <div>
+      <p class="eyebrow">MY PRODUCTS</p>
+      <h1>내 상품</h1>
+      <p class="muted">삭제되지 않은 상품 {{ total }}개</p>
+    </div>
+    <a href="/products/new" class="button-link">상품 등록</a>
+  </section>
+  {% if notice %}<p class="message message--ok" role="status">{{ notice }}</p>{% endif %}
+
+  {% if products %}
+    <div class="product-grid">
+      {% for product in products %}
+        <article class="product-card">
+          <a href="/products/{{ product.id }}">
+            <img src="/product-images/{{ product.image_key }}" alt="" loading="lazy">
+            <div class="product-card__body">
+              <span class="status-badge status-badge--{{ product.status.value }}">
+                {{ status_labels[product.status] }}
+              </span>
+              <h2>{{ product.name }}</h2>
+              <p class="product-price">{{ "{:,}".format(product.price) }}원</p>
+            </div>
+          </a>
+          <div class="product-card__actions">
+            {% if product.status.value != "blocked" %}
+              <a href="/products/{{ product.id }}/edit">수정</a>
+            {% endif %}
+            {% if product.status.value == "active" %}
+              <form method="post" action="/products/{{ product.id }}/sold">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit">판매 완료</button>
+              </form>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty-state">등록한 상품이 없습니다.</p>
+  {% endif %}
+
+  <nav class="pagination" aria-label="내 상품 목록 페이지">
+    {% if previous_url %}<a href="{{ previous_url }}">이전</a>{% endif %}
+    <span>{{ page }}페이지</span>
+    {% if next_url %}<a href="{{ next_url }}">다음</a>{% endif %}
+  </nav>
+{% endblock %}

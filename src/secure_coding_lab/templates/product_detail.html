@@ -10,12 +10,27 @@
     <div>
       <p class="eyebrow">PRODUCT</p>
       <h1>{{ product.name }}</h1>
+      <span class="status-badge status-badge--{{ product.status.value }}">
+        {% if product.status.value == "sold" %}
+          판매 완료
+        {% elif product.status.value == "blocked" %}
+          차단됨
+        {% else %}
+          판매 중
+        {% endif %}
+      </span>
       <p class="product-price">{{ "{:,}".format(product.price) }}원</p>
       <p>판매자: <a href="/users/{{ seller.username }}">{{ seller.username }}</a></p>
       <p class="product-description">{{ product.description }}</p>
-      {% if current_user and current_user.id == product.seller_id %}
+      {% if current_user and current_user.id == product.seller_id and product.status.value != "blocked" %}
         <div class="product-actions">
           <a href="/products/{{ product.id }}/edit" class="button-link">수정</a>
+          {% if product.status.value == "active" %}
+            <form method="post" action="/products/{{ product.id }}/sold">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit">판매 완료</button>
+            </form>
+          {% endif %}
           <form method="post" action="/products/{{ product.id }}/delete">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="button--danger">삭제</button>

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="product-list-header">
+    <div>
+      <p class="eyebrow">MARKETPLACE</p>
+      <h1>상품 둘러보기</h1>
+      <p class="muted">총 {{ total }}개의 상품</p>
+    </div>
+    <form method="get" action="/products" class="search-form">
+      <label for="q">상품명 검색</label>
+      <div class="search-form__controls">
+        <input id="q" name="q" value="{{ query }}" maxlength="100">
+        <button type="submit">검색</button>
+      </div>
+    </form>
+  </section>
+
+  {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+  {% if products %}
+    <div class="product-grid">
+      {% for product, seller in products %}
+        <article class="product-card">
+          <a href="/products/{{ product.id }}">
+            <img src="/product-images/{{ product.image_key }}" alt="" loading="lazy">
+            <div class="product-card__body">
+              <span class="status-badge status-badge--{{ product.status.value }}">
+                {{ status_labels[product.status] }}
+              </span>
+              <h2>{{ product.name }}</h2>
+              <p class="product-price">{{ "{:,}".format(product.price) }}원</p>
+              <p class="muted">{{ seller.username }}</p>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+  {% elif not error %}
+    <p class="empty-state">조건에 맞는 상품이 없습니다.</p>
+  {% endif %}
+
+  <nav class="pagination" aria-label="상품 목록 페이지">
+    {% if previous_url %}<a href="{{ previous_url }}">이전</a>{% endif %}
+    <span>{{ page }}페이지</span>
+    {% if next_url %}<a href="{{ next_url }}">다음</a>{% endif %}
+  </nav>
+{% endblock %}
