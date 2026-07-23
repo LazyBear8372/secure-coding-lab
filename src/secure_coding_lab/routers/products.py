@@ -1,11 +1,12 @@
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlencode
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +27,15 @@ router = APIRouter(include_in_schema=False)
 MAX_NAME_LENGTH = 120
 MAX_DESCRIPTION_LENGTH = 5000
 MAX_PRICE = 9_223_372_036_854_775_807
+MAX_SEARCH_LENGTH = 100
+MAX_PAGE = 10_000
+PAGE_SIZE = 12
 IMAGE_MEDIA_TYPES = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+STATUS_LABELS = {
+    ProductStatus.ACTIVE: "판매 중",
+    ProductStatus.SOLD: "판매 완료",
+    ProductStatus.BLOCKED: "차단됨",
+}
 
 
 def login_redirect() -> RedirectResponse:
@@ -71,10 +80,128 @@ async def owned_product(database: AsyncSession, product_id: UUID, user: User) ->
         select(Product).where(
             Product.id == product_id,
             Product.seller_id == user.id,
-            Product.status != ProductStatus.DELETED,
+            Product.status.in_([ProductStatus.ACTIVE, ProductStatus.SOLD]),
         )
     )
     return result.scalar_one_or_none()
+
+
+def pagination_url(path: str, page: int, query: str = "") -> str:
+    parameters: dict[str, str | int] = {"page": page}
+    if query:
+        parameters["q"] = query
+    return f"{path}?{urlencode(parameters)}"
+
+
+@router.get("/products", response_class=HTMLResponse)
+async def product_list(
+    request: Request,
+    user: Annotated[User | None, Depends(get_optional_user)],
+    database: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    q: str = "",
+    page: Annotated[int, Query(ge=1, le=MAX_PAGE)] = 1,
+) -> HTMLResponse:
+    query = q.strip()
+    if len(query) > MAX_SEARCH_LENGTH:
+        return render_with_csrf(
+            request,
+            "product_list.html",
+            settings=settings,
+            context={
+                "current_user": user,
+                "products": [],
+                "query": query,
+                "page": page,
+                "total": 0,
+                "error": f"검색어는 {MAX_SEARCH_LENGTH}자 이하로 입력해 주세요.",
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    filters = [
+        Product.status.in_([ProductStatus.ACTIVE, ProductStatus.SOLD]),
+        User.status == UserStatus.ACTIVE,
+    ]
+    if query:
+        filters.append(Product.name.icontains(query, autoescape=True))
+
+    total = (
+        await database.execute(
+            select(func.count(Product.id)).join(User, User.id == Product.seller_id).where(*filters)
+        )
+    ).scalar_one()
+    result = await database.execute(
+        select(Product, User)
+        .join(User, User.id == Product.seller_id)
+        .where(*filters)
+        .order_by(Product.created_at.desc(), Product.id.desc())
+        .limit(PAGE_SIZE)
+        .offset((page - 1) * PAGE_SIZE)
+    )
+    products = result.all()
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    return render_with_csrf(
+        request,
+        "product_list.html",
+        settings=settings,
+        context={
+            "current_user": user,
+            "products": products,
+            "query": query,
+            "page": page,
+            "total": total,
+            "status_labels": STATUS_LABELS,
+            "previous_url": pagination_url("/products", page - 1, query) if page > 1 else None,
+            "next_url": (
+                pagination_url("/products", page + 1, query) if page < total_pages else None
+            ),
+        },
+    )
+
+
+@router.get("/me/products", response_class=HTMLResponse)
+async def my_products(
+    request: Request,
+    user: Annotated[User | None, Depends(get_optional_user)],
+    database: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    updated: str | None = None,
+    page: Annotated[int, Query(ge=1, le=MAX_PAGE)] = 1,
+) -> HTMLResponse:
+    if user is None:
+        return login_redirect()
+    visible_statuses = [ProductStatus.ACTIVE, ProductStatus.SOLD, ProductStatus.BLOCKED]
+    filters = [Product.seller_id == user.id, Product.status.in_(visible_statuses)]
+    total = (await database.execute(select(func.count(Product.id)).where(*filters))).scalar_one()
+    result = await database.execute(
+        select(Product)
+        .where(*filters)
+        .order_by(Product.created_at.desc(), Product.id.desc())
+        .limit(PAGE_SIZE)
+        .offset((page - 1) * PAGE_SIZE)
+    )
+    products = result.scalars().all()
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    notice = {
+        "sold": "상품을 판매 완료로 변경했습니다.",
+        "deleted": "상품을 삭제했습니다.",
+    }.get(updated)
+    return render_with_csrf(
+        request,
+        "my_products.html",
+        settings=settings,
+        context={
+            "current_user": user,
+            "products": products,
+            "page": page,
+            "total": total,
+            "status_labels": STATUS_LABELS,
+            "notice": notice,
+            "previous_url": pagination_url("/me/products", page - 1) if page > 1 else None,
+            "next_url": pagination_url("/me/products", page + 1) if page < total_pages else None,
+        },
+    )
 
 
 @router.get("/products/new", response_class=HTMLResponse)
@@ -158,12 +285,21 @@ async def product_detail(
     database: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> HTMLResponse:
+    visibility = Product.status.in_([ProductStatus.ACTIVE, ProductStatus.SOLD])
+    if user is not None:
+        visibility = or_(
+            visibility,
+            and_(
+                Product.status == ProductStatus.BLOCKED,
+                Product.seller_id == user.id,
+            ),
+        )
     result = await database.execute(
         select(Product, User)
         .join(User, User.id == Product.seller_id)
         .where(
             Product.id == product_id,
-            Product.status.in_([ProductStatus.ACTIVE, ProductStatus.SOLD]),
+            visibility,
             User.status == UserStatus.ACTIVE,
         )
     )
@@ -319,23 +455,67 @@ async def delete_product(
     product.updated_at = product.deleted_at
     await database.commit()
     delete_product_image(Path(settings.upload_dir), product.image_key)
-    return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse("/me/products?updated=deleted", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/products/{product_id}/sold", response_class=HTMLResponse)
+async def mark_product_sold(
+    request: Request,
+    product_id: UUID,
+    csrf_token: Annotated[str, Form()],
+    user: Annotated[User | None, Depends(get_optional_user)],
+    database: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> HTMLResponse:
+    if user is None:
+        return login_redirect()
+    if not csrf_is_valid(request, csrf_token, settings):
+        return HTMLResponse("요청을 확인할 수 없습니다.", status_code=status.HTTP_403_FORBIDDEN)
+
+    now = datetime.now(UTC)
+    result = await database.execute(
+        update(Product)
+        .where(
+            Product.id == product_id,
+            Product.seller_id == user.id,
+            Product.status == ProductStatus.ACTIVE,
+        )
+        .values(status=ProductStatus.SOLD, updated_at=now)
+    )
+    if result.rowcount != 1:
+        return render_with_csrf(
+            request,
+            "product_not_found.html",
+            settings=settings,
+            context={"current_user": user},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    await database.commit()
+    return RedirectResponse("/me/products?updated=sold", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/product-images/{image_key}", response_class=FileResponse)
 async def product_image(
     image_key: str,
+    user: Annotated[User | None, Depends(get_optional_user)],
     database: Annotated[AsyncSession, Depends(get_db_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> FileResponse:
     path = image_path(Path(settings.upload_dir), image_key)
     if path is None or not path.is_file():
         return HTMLResponse("이미지를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)
-    result = await database.execute(
-        select(Product.id).where(
-            Product.image_key == image_key,
-            Product.status.in_([ProductStatus.ACTIVE, ProductStatus.SOLD]),
+    visibility = Product.status.in_([ProductStatus.ACTIVE, ProductStatus.SOLD])
+    if user is not None:
+        visibility = or_(
+            visibility,
+            and_(
+                Product.status == ProductStatus.BLOCKED,
+                Product.seller_id == user.id,
+            ),
         )
+    result = await database.execute(
+        select(Product.id).where(Product.image_key == image_key, visibility)
     )
     if result.scalar_one_or_none() is None:
         return HTMLResponse("이미지를 찾을 수 없습니다.", status_code=status.HTTP_404_NOT_FOUND)

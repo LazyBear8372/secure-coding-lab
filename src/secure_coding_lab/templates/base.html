@@ -11,8 +11,10 @@
     <header class="site-header">
       <a href="/" class="brand">Secure Coding Lab</a>
       <nav aria-label="주 메뉴">
+        <a href="/products">상품</a>
         {% if current_user %}
           <a href="/products/new">상품 등록</a>
+          <a href="/me/products">내 상품</a>
           <a href="/me">{{ current_user.username }}</a>
           <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
