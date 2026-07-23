@@ -146,15 +146,29 @@ class ChatRoom(Base):
     __tablename__ = "chat_rooms"
     __table_args__ = (
         CheckConstraint(
-            "(type = 'global' AND product_id IS NULL) OR "
-            "(type = 'product' AND product_id IS NOT NULL)",
-            name="ck_chat_rooms_type_product",
+            "(type = 'global' AND product_id IS NULL AND buyer_id IS NULL) OR "
+            "(type = 'product' AND product_id IS NOT NULL AND buyer_id IS NOT NULL)",
+            name="ck_chat_rooms_type_participants",
+        ),
+        Index(
+            "uq_chat_rooms_product_buyer",
+            "product_id",
+            "buyer_id",
+            unique=True,
+        ),
+        Index(
+            "uq_chat_rooms_global",
+            "type",
+            unique=True,
+            postgresql_where=text("type = 'global'"),
+            sqlite_where=text("type = 'global'"),
         ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     type: Mapped[ChatRoomType] = mapped_column(enum_type(ChatRoomType, "chat_room_type"))
     product_id: Mapped[UUID | None] = mapped_column(ForeignKey("products.id"), index=True)
+    buyer_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=text("CURRENT_TIMESTAMP")
     )

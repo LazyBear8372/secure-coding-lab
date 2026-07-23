@@ -36,6 +36,11 @@
             <button type="submit" class="button--danger">삭제</button>
           </form>
         </div>
+      {% elif current_user and product.status.value == "active" %}
+        <form method="post" action="/products/{{ product.id }}/chats" class="product-chat-action">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit">판매자와 채팅하기</button>
+        </form>
       {% endif %}
     </div>
   </article>

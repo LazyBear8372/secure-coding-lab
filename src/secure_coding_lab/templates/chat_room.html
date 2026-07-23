@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="chat-panel">
+    <header class="chat-panel__header">
+      <div>
+        <p class="eyebrow">
+          {% if room.type.value == "global" %}GLOBAL CHAT{% else %}PRODUCT CHAT{% endif %}
+        </p>
+        {% if product %}
+          <h1>{{ product.name }}</h1>
+          <p>
+            판매자 <a href="/users/{{ seller.username }}">{{ seller.username }}</a>
+            · 구매자 <a href="/users/{{ buyer.username }}">{{ buyer.username }}</a>
+          </p>
+          <p><a href="/products/{{ product.id }}">상품 보기</a></p>
+        {% else %}
+          <h1>모두의 채팅방</h1>
+          <p class="muted">플랫폼 사용자들이 함께 대화하는 공간입니다.</p>
+        {% endif %}
+      </div>
+      <a href="/chats">채팅 목록</a>
+    </header>
+
+    {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+
+    <ol id="messages" class="chat-messages" aria-live="polite">
+      {% for message, sender in messages %}
+        <li class="chat-message{% if sender.id == current_user.id %} chat-message--mine{% endif %}">
+          <div class="chat-message__meta">
+            <a href="/users/{{ sender.username }}">{{ sender.username }}</a>
+            <time datetime="{{ message.created_at.isoformat() }}">
+              {{ message.created_at.strftime("%Y-%m-%d %H:%M") }}
+            </time>
+          </div>
+          <p>{{ message.content }}</p>
+        </li>
+      {% else %}
+        <li class="empty-state">아직 메시지가 없습니다.</li>
+      {% endfor %}
+    </ol>
+
+    {% if can_send %}
+      <form method="post" action="/chats/{{ room.id }}/messages" class="chat-compose">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="content">메시지</label>
+        <textarea
+          id="content"
+          name="content"
+          maxlength="2000"
+          rows="3"
+          required
+        ></textarea>
+        <button type="submit">보내기</button>
+      </form>
+    {% else %}
+      <p class="message message--error">차단되거나 삭제된 상품에는 메시지를 보낼 수 없습니다.</p>
+    {% endif %}
+  </section>
+{% endblock %}
