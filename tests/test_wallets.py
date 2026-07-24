@@ -19,7 +19,7 @@ def csrf_token(response_text: str) -> str:
 
 def idempotency_key(response_text: str, action: str) -> str:
     match = re.search(
-        rf'action="/wallet/{action}"[\\s\\S]*?name="idempotency_key" value="([^"]+)"',
+        rf'action="/wallet/{action}"[\s\S]*?name="idempotency_key" value="([^"]+)"',
         response_text,
     )
     assert match is not None
