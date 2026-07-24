@@ -18,6 +18,7 @@
           <a href="/chats">채팅</a>
           <a href="/wallet">지갑</a>
           <a href="/me/reports">내 신고</a>
+          {% if current_user.role.value == "admin" %}<a href="/admin">관리자</a>{% endif %}
           <a href="/me">{{ current_user.username }}</a>
           <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

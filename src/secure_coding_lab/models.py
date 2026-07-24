@@ -253,6 +253,32 @@ class Report(Base):
         DateTime(timezone=True), default=utc_now, server_default=text("CURRENT_TIMESTAMP")
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
+    review_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+    __table_args__ = (
+        CheckConstraint(
+            "report_id IS NOT NULL OR target_user_id IS NOT NULL OR target_product_id IS NOT NULL",
+            name="ck_admin_audit_logs_has_target",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    admin_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    report_id: Mapped[UUID | None] = mapped_column(ForeignKey("reports.id"), index=True)
+    target_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), index=True)
+    target_product_id: Mapped[UUID | None] = mapped_column(ForeignKey("products.id"), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        server_default=text("CURRENT_TIMESTAMP"),
+        index=True,
+    )
 
 
 class Wallet(Base):

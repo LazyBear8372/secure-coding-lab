@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="settings-panel">
+    <p class="eyebrow">ADMIN · PRODUCTS</p>
+    <h1>상품 관리</h1>
+    {% for product, seller in products %}
+      <article class="settings-card">
+        <h2>{{ product.name }}</h2>
+        <p>{{ seller.username }} · {{ product.status.value }}</p>
+        <form method="post" action="/admin/products/{{ product.id }}/delete">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label for="reason-{{ product.id }}">삭제 사유</label>
+          <input
+            id="reason-{{ product.id }}"
+            name="reason"
+            minlength="5"
+            maxlength="1000"
+            required
+          >
+          <button type="submit" class="button--danger">관리자 삭제</button>
+        </form>
+      </article>
+    {% else %}
+      <p class="empty-state">관리할 상품이 없습니다.</p>
+    {% endfor %}
+  </section>
+{% endblock %}

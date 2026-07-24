@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="settings-panel">
+    <p class="eyebrow">ADMIN</p>
+    <h1>관리자 페이지</h1>
+    <div class="admin-grid">
+      <a class="settings-card" href="/admin/reports"><h2>신고 심사</h2><p>{{ pending_reports }}건 대기</p></a>
+      <a class="settings-card" href="/admin/users"><h2>사용자 관리</h2><p>{{ suspended_users }}명 정지</p></a>
+      <a class="settings-card" href="/admin/products"><h2>상품 관리</h2><p>{{ blocked_products }}개 차단</p></a>
+      <a class="settings-card" href="/admin/audit"><h2>감사 로그</h2><p>관리 작업 조회</p></a>
+    </div>
+  </section>
+{% endblock %}
