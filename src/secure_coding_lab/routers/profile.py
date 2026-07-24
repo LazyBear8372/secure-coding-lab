@@ -16,7 +16,6 @@ from secure_coding_lab.security import (
     normalize_username,
     verify_password,
 )
-from secure_coding_lab.templating import templates
 from secure_coding_lab.web_security import csrf_is_valid, render_with_csrf
 
 router = APIRouter(include_in_schema=False)
@@ -36,7 +35,9 @@ def clear_session_cookie(response: RedirectResponse) -> None:
 async def public_profile(
     request: Request,
     username: str,
+    user: Annotated[User | None, Depends(get_optional_user)],
     database: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> HTMLResponse:
     normalized_username = normalize_username(username)
     result = await database.execute(
@@ -47,15 +48,18 @@ async def public_profile(
     )
     profile_user = result.scalar_one_or_none()
     if profile_user is None:
-        return templates.TemplateResponse(
-            request=request,
-            name="profile_not_found.html",
+        return render_with_csrf(
+            request,
+            "profile_not_found.html",
+            settings=settings,
+            context={"current_user": user},
             status_code=status.HTTP_404_NOT_FOUND,
         )
-    return templates.TemplateResponse(
-        request=request,
-        name="profile.html",
-        context={"profile_user": profile_user},
+    return render_with_csrf(
+        request,
+        "profile.html",
+        settings=settings,
+        context={"profile_user": profile_user, "current_user": user},
     )
 
 

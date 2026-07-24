@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="form-panel">
+    <p class="eyebrow">REPORT</p>
+    {% if target_user %}
+      <h1>{{ target_user.username }} 신고</h1>
+      {% set action = "/users/" ~ target_user.username ~ "/reports" %}
+    {% else %}
+      <h1>{{ target_product.name }} 신고</h1>
+      {% set action = "/products/" ~ target_product.id ~ "/reports" %}
+    {% endif %}
+    {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+    <form method="post" action="{{ action }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="reason">신고 사유</label>
+      <textarea
+        id="reason"
+        name="reason"
+        minlength="10"
+        maxlength="2000"
+        rows="8"
+        required
+      >{{ reason }}</textarea>
+      <button type="submit" class="button--danger">신고 접수</button>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="settings-panel">
+    <p class="eyebrow">MY REPORTS</p>
+    <h1>내 신고 내역</h1>
+    {% if request.query_params.get("created") %}
+      <p class="message message--ok" role="status">신고가 접수되었습니다.</p>
+    {% endif %}
+    <div class="report-list">
+      {% for report, target_user, target_product in reports %}
+        <article class="settings-card">
+          <span class="status-badge">{{ status_labels[report.status] }}</span>
+          <h2>
+            {% if target_user %}사용자 {{ target_user.username }}{% else %}상품 {{ target_product.name }}{% endif %}
+          </h2>
+          <p class="bio">{{ report.reason }}</p>
+          <time datetime="{{ report.created_at.isoformat() }}">
+            {{ report.created_at.strftime("%Y-%m-%d %H:%M") }}
+          </time>
+        </article>
+      {% else %}
+        <p class="empty-state">접수한 신고가 없습니다.</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

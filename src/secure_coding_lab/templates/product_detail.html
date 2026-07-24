@@ -42,6 +42,9 @@
           <button type="submit">판매자와 채팅하기</button>
         </form>
       {% endif %}
+      {% if current_user and current_user.id != product.seller_id %}
+        <p><a href="/products/{{ product.id }}/report">상품 신고</a></p>
+      {% endif %}
     </div>
   </article>
 {% endblock %}
