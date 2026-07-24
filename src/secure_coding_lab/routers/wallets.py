@@ -180,7 +180,7 @@ async def change_balance(
                 .values(balance=Wallet.balance - parsed_amount)
             )
             if result.rowcount != 1:
-                await database.rollback()
+                await database.commit()
                 return await wallet_page_response(
                     request, database, user, settings, error="잔액이 부족합니다.", status_code=400
                 )
