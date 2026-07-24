@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="settings-panel">
+    <p class="eyebrow">WALLET</p>
+    <h1>내 지갑</h1>
+    <p class="wallet-balance">{{ "{:,}".format(wallet.balance) }}원</p>
+    {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+    {% if request.query_params.get("updated") %}<p class="message message--ok" role="status">요청이 처리되었습니다.</p>{% endif %}
+
+    <div class="wallet-actions">
+      <section class="settings-card">
+        <h2>모의 입금</h2>
+        <form method="post" action="/wallet/deposit">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="idempotency_key" value="{{ deposit_key }}">
+          <label for="deposit-amount">금액</label>
+          <input id="deposit-amount" name="amount" type="number" min="1" max="9223372036854775807" required>
+          <button type="submit">입금</button>
+        </form>
+      </section>
+      <section class="settings-card">
+        <h2>모의 출금</h2>
+        <form method="post" action="/wallet/withdraw">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="idempotency_key" value="{{ withdrawal_key }}">
+          <label for="withdrawal-amount">금액</label>
+          <input id="withdrawal-amount" name="amount" type="number" min="1" max="9223372036854775807" required>
+          <button type="submit">출금</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="settings-card">
+      <h2>거래 내역</h2>
+      {% if transfers %}
+        <ul class="transfer-list">
+          {% for transfer in transfers %}
+            <li>
+              <span>{{ transfer_labels[transfer.type] }}</span>
+              <strong>{{ "{:,}".format(transfer.amount) }}원</strong>
+              <time datetime="{{ transfer.created_at.isoformat() }}">{{ transfer.created_at.strftime("%Y-%m-%d %H:%M") }}</time>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}<p class="muted">거래 내역이 없습니다.</p>{% endif %}
+      <nav class="pagination" aria-label="거래 내역 페이지">
+        {% if page > 1 %}<a href="/wallet?page={{ page - 1 }}">이전</a>{% endif %}
+        <span>{{ page }}페이지</span>
+        {% if has_next %}<a href="/wallet?page={{ page + 1 }}">다음</a>{% endif %}
+      </nav>
+    </section>
+  </section>
+{% endblock %}
