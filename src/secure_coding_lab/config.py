@@ -20,9 +20,13 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://secure_lab:secure_lab_dev@127.0.0.1:5432/secure_lab"
     session_ttl_hours: int = 24
     upload_dir: str = "data/uploads"
+    user_report_block_threshold: int = 3
+    product_report_block_threshold: int = 3
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> Self:
+        if self.user_report_block_threshold < 1 or self.product_report_block_threshold < 1:
+            raise ValueError("report block thresholds must be positive")
         if self.app_env == "production" and (
             self.secret_key == INSECURE_DEFAULT_SECRET or len(self.secret_key) < 32
         ):
