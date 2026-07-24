@@ -162,7 +162,15 @@ async def chat_context(
         .limit(MESSAGE_HISTORY_LIMIT)
     )
     messages = list(reversed(result.all()))
-    can_send = product is None or product.status in (ProductStatus.ACTIVE, ProductStatus.SOLD)
+    participants_active = product is None or (
+        seller is not None
+        and buyer is not None
+        and seller.status == UserStatus.ACTIVE
+        and buyer.status == UserStatus.ACTIVE
+    )
+    can_send = product is None or (
+        product.status in (ProductStatus.ACTIVE, ProductStatus.SOLD) and participants_active
+    )
     can_transfer = (
         product is not None
         and room.buyer_id == user.id
@@ -355,7 +363,16 @@ async def send_message(
         return chat_not_found(request, settings, user)
     if room.product_id is not None:
         product = await database.get(Product, room.product_id)
-        if product is None or product.status not in (ProductStatus.ACTIVE, ProductStatus.SOLD):
+        seller = await database.get(User, product.seller_id) if product else None
+        buyer = await database.get(User, room.buyer_id) if room.buyer_id else None
+        if (
+            product is None
+            or seller is None
+            or buyer is None
+            or product.status not in (ProductStatus.ACTIVE, ProductStatus.SOLD)
+            or seller.status != UserStatus.ACTIVE
+            or buyer.status != UserStatus.ACTIVE
+        ):
             return chat_not_found(request, settings, user)
 
     normalized_content = content.strip()
