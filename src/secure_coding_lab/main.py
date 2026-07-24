@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from secure_coding_lab.config import get_settings
 from secure_coding_lab.db import engine
-from secure_coding_lab.routers import auth, chats, health, pages, products, profile
+from secure_coding_lab.routers import auth, chats, health, pages, products, profile, wallets
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 
@@ -31,4 +31,5 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(products.router)
 app.include_router(chats.router)
+app.include_router(wallets.router)
 app.include_router(pages.router)

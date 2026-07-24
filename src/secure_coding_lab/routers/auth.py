@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from secure_coding_lab.auth import SESSION_COOKIE_NAME
 from secure_coding_lab.config import Settings, get_settings
 from secure_coding_lab.db import get_db_session
-from secure_coding_lab.models import Session, User, UserStatus
+from secure_coding_lab.models import Session, User, UserStatus, Wallet
 from secure_coding_lab.security import (
     DUMMY_PASSWORD_HASH,
     hash_password,
@@ -86,8 +86,11 @@ async def signup(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    database.add(User(username=normalized_username, password_hash=hash_password(password)))
+    user = User(username=normalized_username, password_hash=hash_password(password))
+    database.add(user)
     try:
+        await database.flush()
+        database.add(Wallet(user_id=user.id))
         await database.commit()
     except IntegrityError:
         await database.rollback()
