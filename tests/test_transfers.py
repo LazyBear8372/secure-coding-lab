@@ -3,10 +3,17 @@ import re
 from uuid import UUID, uuid4
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
+from secure_coding_lab.config import Settings, get_settings
+from secure_coding_lab.db import Base, get_db_session
+from secure_coding_lab.main import app
 from secure_coding_lab.models import (
     ChatRoom,
     ChatRoomMember,
@@ -241,42 +248,70 @@ async def test_transfer_rejects_forged_csrf_and_invalid_amount(
 
 @pytest.mark.asyncio
 async def test_concurrent_transfers_cannot_overdraw_buyer(
-    client: AsyncClient,
-    database_factory: async_sessionmaker[AsyncSession],
+    tmp_path,
 ) -> None:
-    seller_id, seller_wallet_id = await create_user_with_wallet(database_factory, "seller")
-    buyer_id, buyer_wallet_id = await create_user_with_wallet(
-        database_factory, "buyer", balance=100
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path / 'transfer-concurrency.db'}",
+        connect_args={"timeout": 30},
     )
-    room_id = await create_product_room(database_factory, seller_id, buyer_id)
-    await login(client, "buyer")
-    page = await client.get(f"/chats/{room_id}")
-    csrf = csrf_token(page.text)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    database_factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    responses = await asyncio.gather(
-        client.post(
-            f"/chats/{room_id}/transfers",
-            data={
-                "amount": "80",
-                "csrf_token": csrf,
-                "idempotency_key": str(uuid4()),
-            },
-        ),
-        client.post(
-            f"/chats/{room_id}/transfers",
-            data={
-                "amount": "80",
-                "csrf_token": csrf,
-                "idempotency_key": str(uuid4()),
-            },
-        ),
+    async def override_database():
+        async with database_factory() as database:
+            yield database
+
+    app.dependency_overrides[get_db_session] = override_database
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        app_env="test",
+        secret_key="test-secret-key-with-at-least-32-characters",
+        database_url="sqlite+aiosqlite://",
+        upload_dir=str(tmp_path / "uploads"),
     )
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            follow_redirects=False,
+        ) as client:
+            seller_id, seller_wallet_id = await create_user_with_wallet(database_factory, "seller")
+            buyer_id, buyer_wallet_id = await create_user_with_wallet(
+                database_factory, "buyer", balance=100
+            )
+            room_id = await create_product_room(database_factory, seller_id, buyer_id)
+            await login(client, "buyer")
+            page = await client.get(f"/chats/{room_id}")
+            csrf = csrf_token(page.text)
 
-    assert sorted(response.status_code for response in responses) == [303, 400]
-    async with database_factory() as database:
-        buyer_wallet = await database.get(Wallet, buyer_wallet_id)
-        seller_wallet = await database.get(Wallet, seller_wallet_id)
-        transfers = (await database.execute(select(WalletTransfer))).scalars().all()
-    assert buyer_wallet is not None and buyer_wallet.balance == 20
-    assert seller_wallet is not None and seller_wallet.balance == 80
-    assert len(transfers) == 1
+            responses = await asyncio.gather(
+                client.post(
+                    f"/chats/{room_id}/transfers",
+                    data={
+                        "amount": "80",
+                        "csrf_token": csrf,
+                        "idempotency_key": str(uuid4()),
+                    },
+                ),
+                client.post(
+                    f"/chats/{room_id}/transfers",
+                    data={
+                        "amount": "80",
+                        "csrf_token": csrf,
+                        "idempotency_key": str(uuid4()),
+                    },
+                ),
+            )
+
+            assert sorted(response.status_code for response in responses) == [303, 400]
+            async with database_factory() as database:
+                buyer_wallet = await database.get(Wallet, buyer_wallet_id)
+                seller_wallet = await database.get(Wallet, seller_wallet_id)
+                transfers = (await database.execute(select(WalletTransfer))).scalars().all()
+            assert buyer_wallet is not None and buyer_wallet.balance == 20
+            assert seller_wallet is not None and seller_wallet.balance == 80
+            assert len(transfers) == 1
+    finally:
+        app.dependency_overrides.clear()
+        await engine.dispose()
