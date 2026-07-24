@@ -23,6 +23,34 @@
     </header>
 
     {% if error %}<p class="message message--error" role="alert">{{ error }}</p>{% endif %}
+    {% if request.query_params.get("transferred") %}
+      <p class="message message--ok" role="status">송금이 완료되었습니다.</p>
+    {% endif %}
+
+    {% if can_transfer %}
+      <section class="chat-transfer">
+        <div>
+          <h2>판매자에게 송금</h2>
+          <p class="muted">현재 잔액 {{ "{:,}".format(buyer_wallet.balance) }}원</p>
+        </div>
+        <form method="post" action="/chats/{{ room.id }}/transfers">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="idempotency_key" value="{{ transfer_key }}">
+          <label for="transfer-amount">송금액</label>
+          <div class="chat-transfer__controls">
+            <input
+              id="transfer-amount"
+              name="amount"
+              type="number"
+              min="1"
+              max="9223372036854775807"
+              required
+            >
+            <button type="submit">송금</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
 
     <ol id="messages" class="chat-messages" aria-live="polite">
       {% for message, sender in messages %}

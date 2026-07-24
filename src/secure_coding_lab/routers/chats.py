@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -21,6 +21,15 @@ from secure_coding_lab.models import (
     ProductStatus,
     User,
     UserStatus,
+    Wallet,
+    WalletTransfer,
+    WalletTransferType,
+)
+from secure_coding_lab.routers.wallets import (
+    MAX_AMOUNT,
+    parse_amount,
+    parse_idempotency_key,
+    wallet_for_user,
 )
 from secure_coding_lab.web_security import csrf_is_valid, render_with_csrf
 
@@ -154,6 +163,15 @@ async def chat_context(
     )
     messages = list(reversed(result.all()))
     can_send = product is None or product.status in (ProductStatus.ACTIVE, ProductStatus.SOLD)
+    can_transfer = (
+        product is not None
+        and room.buyer_id == user.id
+        and product.seller_id != user.id
+        and product.status in (ProductStatus.ACTIVE, ProductStatus.SOLD)
+        and seller is not None
+        and seller.status == UserStatus.ACTIVE
+    )
+    buyer_wallet = await wallet_for_user(database, user) if can_transfer else None
     return {
         "current_user": user,
         "room": room,
@@ -162,8 +180,34 @@ async def chat_context(
         "buyer": buyer,
         "messages": messages,
         "can_send": can_send,
+        "can_transfer": can_transfer,
+        "buyer_wallet": buyer_wallet,
+        "transfer_key": str(uuid4()),
         "error": error,
     }
+
+
+def transfer_matches(
+    transfer: WalletTransfer,
+    *,
+    room_id: UUID,
+    sender_wallet_id: UUID,
+    receiver_wallet_id: UUID,
+    amount: int,
+) -> bool:
+    return (
+        transfer.type == WalletTransferType.TRANSFER
+        and transfer.chat_room_id == room_id
+        and transfer.sender_wallet_id == sender_wallet_id
+        and transfer.receiver_wallet_id == receiver_wallet_id
+        and transfer.amount == amount
+    )
+
+
+async def transfer_by_key(database: AsyncSession, key: UUID) -> WalletTransfer | None:
+    return await database.scalar(
+        select(WalletTransfer).where(WalletTransfer.idempotency_key == key)
+    )
 
 
 async def render_room(
@@ -336,5 +380,184 @@ async def send_message(
     await database.commit()
     return RedirectResponse(
         f"/chats/{room.id}#messages",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/chats/{room_id}/transfers", response_class=HTMLResponse)
+async def send_transfer(
+    request: Request,
+    room_id: UUID,
+    amount: Annotated[str, Form()],
+    idempotency_key: Annotated[str, Form()],
+    csrf_token: Annotated[str, Form()],
+    user: Annotated[User | None, Depends(get_optional_user)],
+    database: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> HTMLResponse:
+    if user is None:
+        return login_redirect()
+    if not csrf_is_valid(request, csrf_token, settings):
+        return HTMLResponse("요청을 확인할 수 없습니다.", status_code=status.HTTP_403_FORBIDDEN)
+
+    room = await room_for_member(database, room_id, user.id)
+    if room is None or room.type != ChatRoomType.PRODUCT or room.buyer_id != user.id:
+        return chat_not_found(request, settings, user)
+
+    product = await database.get(Product, room.product_id)
+    seller = await database.get(User, product.seller_id) if product is not None else None
+    if (
+        product is None
+        or seller is None
+        or product.status not in (ProductStatus.ACTIVE, ProductStatus.SOLD)
+        or seller.status != UserStatus.ACTIVE
+        or product.seller_id == user.id
+    ):
+        return chat_not_found(request, settings, user)
+
+    try:
+        parsed_amount = parse_amount(amount)
+        key = parse_idempotency_key(idempotency_key)
+    except ValueError as error:
+        return await render_room(
+            request,
+            settings,
+            database,
+            room,
+            user,
+            error=str(error),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    sender_wallet = await wallet_for_user(database, user)
+    receiver_wallet = await wallet_for_user(database, seller)
+    await database.flush()
+    user_id = user.id
+    sender_wallet_id = sender_wallet.id
+    receiver_wallet_id = receiver_wallet.id
+
+    existing = await transfer_by_key(database, key)
+    if existing is not None:
+        if transfer_matches(
+            existing,
+            room_id=room.id,
+            sender_wallet_id=sender_wallet_id,
+            receiver_wallet_id=receiver_wallet_id,
+            amount=parsed_amount,
+        ):
+            return RedirectResponse(
+                f"/chats/{room.id}?transferred=1",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        return await render_room(
+            request,
+            settings,
+            database,
+            room,
+            user,
+            error="이미 사용된 요청입니다.",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+    locked_wallets = (
+        (
+            await database.execute(
+                select(Wallet)
+                .where(Wallet.id.in_([sender_wallet_id, receiver_wallet_id]))
+                .order_by(Wallet.id)
+                .with_for_update()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    locked_by_id = {wallet.id: wallet for wallet in locked_wallets}
+    locked_sender = locked_by_id[sender_wallet_id]
+    locked_receiver = locked_by_id[receiver_wallet_id]
+    if locked_sender.balance < parsed_amount:
+        await database.commit()
+        return await render_room(
+            request,
+            settings,
+            database,
+            room,
+            user,
+            error="잔액이 부족합니다.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    if locked_receiver.balance > MAX_AMOUNT - parsed_amount:
+        await database.commit()
+        return await render_room(
+            request,
+            settings,
+            database,
+            room,
+            user,
+            error="수취인의 지갑 잔액 한도를 초과합니다.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        debit = await database.execute(
+            update(Wallet)
+            .where(Wallet.id == sender_wallet_id, Wallet.balance >= parsed_amount)
+            .values(balance=Wallet.balance - parsed_amount)
+        )
+        if debit.rowcount != 1:
+            await database.commit()
+            return await render_room(
+                request,
+                settings,
+                database,
+                room,
+                user,
+                error="잔액이 부족합니다.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        await database.execute(
+            update(Wallet)
+            .where(Wallet.id == receiver_wallet_id)
+            .values(balance=Wallet.balance + parsed_amount)
+        )
+        database.add(
+            WalletTransfer(
+                chat_room_id=room.id,
+                sender_wallet_id=sender_wallet_id,
+                receiver_wallet_id=receiver_wallet_id,
+                amount=parsed_amount,
+                type=WalletTransferType.TRANSFER,
+                idempotency_key=key,
+            )
+        )
+        await database.commit()
+    except IntegrityError:
+        await database.rollback()
+        existing = await transfer_by_key(database, key)
+        if existing is not None and transfer_matches(
+            existing,
+            room_id=room.id,
+            sender_wallet_id=sender_wallet_id,
+            receiver_wallet_id=receiver_wallet_id,
+            amount=parsed_amount,
+        ):
+            return RedirectResponse(
+                f"/chats/{room_id}?transferred=1",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        room = await room_for_member(database, room_id, user_id)
+        refreshed_user = await database.get(User, user_id)
+        assert room is not None and refreshed_user is not None
+        return await render_room(
+            request,
+            settings,
+            database,
+            room,
+            refreshed_user,
+            error="송금을 처리하지 못했습니다.",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+    return RedirectResponse(
+        f"/chats/{room_id}?transferred=1",
         status_code=status.HTTP_303_SEE_OTHER,
     )
