@@ -1,21 +1,8 @@
 # Secure Coding Lab 실행 방법
 
+간단히 docker compose만을 사용해서 실행할 수 있다.
+
 ## 실행
-
-```bash
-git clone https://github.com/LazyBear8372/secure-coding-lab.git
-cd secure-coding-lab
-cp .env.example .env
-```
-
-Windows PowerShell에서는 마지막 명령 대신 다음을 실행한다.
-
-```powershell
-Copy-Item .env.example .env
-```
-
-`.env`를 열어 `SECRET_KEY`와 `POSTGRES_PASSWORD`를 임의의 안전한 값으로 변경한다.
-두 값에는 영문자와 숫자만 사용하고, `SECRET_KEY`는 32자 이상으로 설정한다.
 
 ```bash
 docker compose up --build -d
