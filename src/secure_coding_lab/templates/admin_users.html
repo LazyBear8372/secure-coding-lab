@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="settings-panel">
+    <p class="eyebrow">ADMIN · USERS</p>
+    <h1>사용자 관리</h1>
+    {% for managed_user in users %}
+      <article class="settings-card">
+        <h2>{{ managed_user.username }}</h2>
+        <p>{{ managed_user.status.value }} · {{ managed_user.role.value }}</p>
+        {% if managed_user.id != current_user.id and managed_user.status.value != "withdrawn" %}
+          <form method="post" action="/admin/users/{{ managed_user.id }}/status">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input
+              type="hidden"
+              name="action"
+              value="{% if managed_user.status.value == 'active' %}suspend{% else %}restore{% endif %}"
+            >
+            <label for="reason-{{ managed_user.id }}">처리 사유</label>
+            <input
+              id="reason-{{ managed_user.id }}"
+              name="reason"
+              minlength="5"
+              maxlength="1000"
+              required
+            >
+            <button type="submit">
+              {% if managed_user.status.value == "active" %}정지{% else %}복구{% endif %}
+            </button>
+          </form>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

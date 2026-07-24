@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from secure_coding_lab.config import get_settings
 from secure_coding_lab.db import engine
 from secure_coding_lab.routers import (
+    admin,
     auth,
     chats,
     health,
@@ -42,4 +43,5 @@ app.include_router(products.router)
 app.include_router(chats.router)
 app.include_router(wallets.router)
 app.include_router(reports.router)
+app.include_router(admin.router)
 app.include_router(pages.router)

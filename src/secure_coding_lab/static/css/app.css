@@ -508,6 +508,17 @@ button:hover {
   margin-top: 1rem;
 }
 
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.admin-grid .settings-card {
+  color: inherit;
+  text-decoration: none;
+}
+
 .chat-transfer {
   display: grid;
   grid-template-columns: 1fr minmax(18rem, 1fr);
