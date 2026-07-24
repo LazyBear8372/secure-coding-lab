@@ -508,11 +508,41 @@ button:hover {
   margin-top: 1rem;
 }
 
+.chat-transfer {
+  display: grid;
+  grid-template-columns: 1fr minmax(18rem, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #dfe6db;
+  border-radius: 0.75rem;
+  background: white;
+}
+
+.chat-transfer h2,
+.chat-transfer p,
+.chat-transfer form {
+  margin: 0;
+}
+
+.chat-transfer__controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-transfer__controls button {
+  margin: 0;
+}
+
 @media (max-width: 44rem) {
   .product-list-header,
   .chat-list-header,
   .chat-panel__header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .chat-transfer {
+    grid-template-columns: 1fr;
   }
 }
